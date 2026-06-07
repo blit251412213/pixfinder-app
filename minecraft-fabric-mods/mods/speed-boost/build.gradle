@@ -1,0 +1,3 @@
+archivesBaseName = 'speed-boost'
+version = '1.0.0'
+group = 'com.example'

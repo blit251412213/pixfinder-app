@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "night-vision",
+  "version": "1.0.0",
+  "name": "Night Vision",
+  "description": "Gives all online players permanent Night Vision.",
+  "authors": ["Nicky"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.example.nightvision.NightVisionMod"]
+  },
+  "mixins": [],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.20.4",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}

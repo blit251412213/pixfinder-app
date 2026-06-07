@@ -1,0 +1,11 @@
+pluginManagement {
+    repositories {
+        maven { url = 'https://maven.fabricmc.net/' }
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'minecraft-fabric-mods'
+include 'mods:speed-boost'
+include 'mods:super-tools'
+include 'mods:night-vision'
