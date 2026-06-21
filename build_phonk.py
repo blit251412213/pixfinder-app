@@ -20,9 +20,9 @@ SEGS = [
     (1, 12.0, 1.6),
 ]
 
-# ---- beat math for zoompan (rendered at 60fps -> T = frame/60) ---------
+# ---- beat math for zoompan (30fps -> T = frame/30) --------------------
 # Reference style: hard snap-zoom punch on the heavy beat + motion blur.
-T  = "(on/60)"
+T  = "(on/30)"
 PB = f"({T}-0.4*floor({T}/0.4))"                       # every beat (0.4s)
 PS = f"(({T}-0.4)-0.8*floor(({T}-0.4)/0.8))"           # backbeat hit (0.8s, +0.4)
 PA = f"({T}-3.2*floor({T}/3.2))"                       # accent / drop (2 bars)
@@ -48,10 +48,10 @@ for i, (idx, s, d) in enumerate(SEGS):
 concat = "".join(labels) + f"concat=n={len(SEGS)}:v=1:a=0[cat];"
 finish = (
     "[cat]eq=contrast=1.08:saturation=1.18:brightness=0.01:gamma=0.96,unsharp=5:5:0.5,"
-    # zoom/shake at 60fps so the punch has frames to blur across...
-    f"zoompan=z='{Z}':x='(iw-iw/zoom)/2+{SX}':y='(ih-ih/zoom)/2+{SY}':d=1:s=1080x1920:fps=60,"
-    # ...then frame-blend for motion blur on the fast zoom and decimate to 30fps
-    "tmix=frames=4,fps=30,"
+    # snap-zoom punch + shake at 30fps...
+    f"zoompan=z='{Z}':x='(iw-iw/zoom)/2+{SX}':y='(ih-ih/zoom)/2+{SY}':d=1:s=1080x1920:fps=30,"
+    # ...frame-blend 3 neighbours: heavy smear during the fast punch, sharp when static
+    "tmix=frames=3,"
     "vignette=PI/4.6,noise=alls=2:allf=t,format=yuv420p[v]"
 )
 fc = "".join(parts) + concat + finish
@@ -61,8 +61,9 @@ cmd = [
     "-i", ORIG, "-i", C1, "-i", C2, "-i", "phonk.wav",
     "-filter_complex", fc,
     "-map", "[v]", "-map", "3:a",
-    "-c:v", "libx264", "-preset", "slow", "-crf", "19", "-pix_fmt", "yuv420p", "-r", "30",
+    "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p", "-r", "30",
     "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+    "-max_muxing_queue_size", "1024",
     "-movflags", "+faststart", "-shortest", OUT,
 ]
 print("running ffmpeg...")
