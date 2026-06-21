@@ -28,14 +28,14 @@ def fmt(src, out):
 # build the per-segment format chains
 parts = []
 parts.append("[0:v]trim=3.0:8.291,setpts=PTS-STARTPTS[dig0];" + fmt("[dig0]", "dig"))
-parts.append("[0:v]trim=11.4:19.4,setpts=PTS-STARTPTS[cir0];" + fmt("[cir0]", "cir"))
-parts.append("[1:v]trim=2.0:7.0,setpts=PTS-STARTPTS[c10];"  + fmt("[c10]", "c1s"))
-parts.append("[2:v]trim=2.0:7.279,setpts=PTS-STARTPTS[c20];" + fmt("[c20]", "c2s"))
-# freeze (png input 3, looped) -> format -> desaturate + light grey wash
+parts.append("[0:v]trim=13.9:19.4,setpts=PTS-STARTPTS[cir0];" + fmt("[cir0]", "cir"))
+parts.append("[1:v]trim=2.0:8.0,setpts=PTS-STARTPTS[c10];"  + fmt("[c10]", "c1s"))
+parts.append("[2:v]trim=2.0:8.5,setpts=PTS-STARTPTS[c20];" + fmt("[c20]", "c2s"))
+# freeze (png input 3, looped) -> format -> LIGHT grey wash (base stays visible)
 parts.append(
     fmt("[3:v]", "frz0")
-    + "[frz0]eq=saturation=0.32:brightness=0.04:contrast=0.98,"
-      "drawbox=x=0:y=0:w=iw:h=ih:color=0x9b9b9b@0.30:t=fill,fps=30[frz];"
+    + "[frz0]eq=saturation=0.45:brightness=0.06:contrast=1.0,"
+      "drawbox=x=0:y=0:w=iw:h=ih:color=0xa8a8a8@0.20:t=fill,fps=30[frz];"
 )
 concat = "[dig][frz][cir][c1s][c2s]concat=n=5:v=1:a=0[base]"
 fc1 = "".join(parts) + concat
@@ -55,10 +55,12 @@ PB = f"(({T}-{PHI})-{P}*floor(({T}-{PHI})/{P}))"
 PS = f"(({T}-{PHI})-{P2}*floor(({T}-{PHI})/{P2}))"
 # gate: shakes OFF until the freeze ends (edit t=6.791), then ON (comma-free step)
 G  = f"(0.5+0.5*({T}-6.791)/(abs({T}-6.791)+0.0001))"
-Z  = f"(1.05+{G}*(0.07*exp(-{PB}*11)+0.06*exp(-{PS}*7)))"
-AMP= f"({G}*(6*exp(-{PB}*13)+11*exp(-{PS}*8)))"
-SX = f"({AMP}*sin(220*{T}))"
-SY = f"({AMP}*0.85*sin(173*{T}+1.0))"
+# constant energetic bounce (beat-rate pump) + sharp punch every beat + strong beat
+BZ = f"(0.02*(0.5+0.5*sin(6.283*({T}-{PHI})/{P})))"
+Z  = f"(1.04+{G}*({BZ}+0.07*exp(-{PB}*11)+0.05*exp(-{PS}*7)))"
+AMP= f"({G}*(2+6*exp(-{PB}*13)+9*exp(-{PS}*8)))"
+SX = f"({AMP}*sin(85*{T}))"
+SY = f"({AMP}*0.85*sin(70*{T}+1.0))"
 fc2 = (f"[0:v]fps=60,zoompan=z='{Z}':x='(iw-iw/zoom)/2+{SX}':y='(ih-ih/zoom)/2+{SY}':"
        f"d=1:s=1080x1920:fps=60,tmix=frames=2,vignette=PI/4.6,noise=alls=2:allf=t,"
        f"format=yuv420p[v]")
