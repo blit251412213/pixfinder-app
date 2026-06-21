@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Build the phonk TikTok montage with beat-synced zoom/shake."""
-import subprocess
+import subprocess, json
 
 U = "/root/.claude/uploads/2ba1d80d-2350-5725-9543-aa4229e54926"
 ORIG = f"{U}/3b5ee041-Screen_Recording_20260618_213610.mp4"
 C1   = f"{U}/8f526b39-Screen_Recording_20260619_103653.mp4"
 C2   = f"{U}/7a1efb50-Screen_Recording_20260619_111328.mp4"
-OUT  = "tiktok_phonk.mp4"
+SONG = "song.m4a"               # audio supplied by the user
+OUT  = "tiktok_final.mp4"
 
 # (input_index, start, dur) — cuts land on bars (1.6s); 25.6s total = 16 bars
 SEGS = [
@@ -20,17 +21,20 @@ SEGS = [
     (1, 12.0, 1.6),
 ]
 
-# ---- beat math for zoompan (30fps -> T = frame/30) --------------------
-# Reference style: hard snap-zoom punch on the heavy beat + motion blur.
-T  = "(on/30)"
-PB = f"({T}-0.4*floor({T}/0.4))"                       # every beat (0.4s)
-PS = f"(({T}-0.4)-0.8*floor(({T}-0.4)/0.8))"           # backbeat hit (0.8s, +0.4)
-PA = f"({T}-3.2*floor({T}/3.2))"                       # accent / drop (2 bars)
-# big punch on the backbeat, smaller pulse on other beats, biggest on the drop
-Z  = f"(1.06+0.04*exp(-{PB}*12)+0.42*exp(-{PS}*9)+0.16*exp(-{PA}*5))"
-AMP= f"(14*exp(-{PS}*14)+22*exp(-{PA}*7))"
-SX = f"({AMP}*sin(220*{T}))"
-SY = f"({AMP}*0.85*sin(173*{T}+1.0))"
+# ---- beat math locked to the supplied song (30fps -> T = frame/30) ----
+bd  = json.load(open("song_beats.json"))
+P   = round(bd["period"], 5)      # detected beat period
+PHI = round(bd["phi"], 5)         # detected downbeat offset
+P2  = round(2*bd["period"], 5)    # every-other (strong) beat
+T   = "(on/30)"
+PB  = f"(({T}-{PHI})-{P}*floor(({T}-{PHI})/{P}))"      # phase within a beat
+PS  = f"(({T}-{PHI})-{P2}*floor(({T}-{PHI})/{P2}))"    # phase within strong beat
+# Gentle, lowered intensity (closer to the example): soft punch every beat,
+# a touch more on the strong beat. No huge snap.
+Z   = f"(1.05+0.07*exp(-{PB}*11)+0.06*exp(-{PS}*7))"
+AMP = f"(6*exp(-{PB}*13)+11*exp(-{PS}*8))"
+SX  = f"({AMP}*sin(220*{T}))"
+SY  = f"({AMP}*0.85*sin(173*{T}+1.0))"
 
 # ---- per-segment formatting to 1080x1920 (blurred bg + centered fg) ----
 parts = []
@@ -50,15 +54,15 @@ finish = (
     "[cat]eq=contrast=1.08:saturation=1.18:brightness=0.01:gamma=0.96,unsharp=5:5:0.5,"
     # snap-zoom punch + shake at 30fps...
     f"zoompan=z='{Z}':x='(iw-iw/zoom)/2+{SX}':y='(ih-ih/zoom)/2+{SY}':d=1:s=1080x1920:fps=30,"
-    # ...frame-blend 3 neighbours: heavy smear during the fast punch, sharp when static
-    "tmix=frames=3,"
+    # ...light frame-blend (2 neighbours) for a soft smear on the punch
+    "tmix=frames=2,"
     "vignette=PI/4.6,noise=alls=2:allf=t,format=yuv420p[v]"
 )
 fc = "".join(parts) + concat + finish
 
 cmd = [
     "ffmpeg", "-y",
-    "-i", ORIG, "-i", C1, "-i", C2, "-i", "phonk.wav",
+    "-i", ORIG, "-i", C1, "-i", C2, "-i", SONG,
     "-filter_complex", fc,
     "-map", "[v]", "-map", "3:a",
     "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p", "-r", "30",
